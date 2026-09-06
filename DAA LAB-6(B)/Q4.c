@@ -1,13 +1,15 @@
 #include<stdio.h>
 #define MAX 100
-int cost=0;
-int reversals=0;
-//Reverse elements from i to j
-void reverse(int a[],int i,int j)
+//Reverse elements from index i to j
+void reverse(int a[],int i,int j,long long *cost,int *count)
 {
     int temp;
-    cost+=j-i+1;
-    reversals++;
+
+    if(i>=j)
+        return;
+
+    *cost+=j-i+1;
+    (*count)++;
 
     while(i<j)
     {
@@ -18,52 +20,100 @@ void reverse(int a[],int i,int j)
         j--;
     }
 }
-//Partition using divide and conquer
-int partition(int a[],int l,int r,int value)
+//Part 1: Sort using at most O(n) reversals
+void simpleSort(int a[],int n,long long *cost,int *count)
 {
-    if(l==r)
+    int i,j;
+    for(i=0;i<n-1;i++)
+    {
+        if(a[i]!=i+1)
+        {
+            for(j=i+1;j<n;j++)
+            {
+                if(a[j]==i+1)
+                    break;
+            }
+
+            reverse(a,i,j,cost,count);
+        }
+    }
+}
+//Stable partition using divide and conquer
+//Places elements <= value first
+//Returns the first index after the <= value elements
+int partition(int a[],int l,int r,int value,long long *cost,int *count)
+{
+    int mid,p1,p2;
+    int leftFalse,rightTrue;
+    //Using half-open interval [l,r)
+    if(r-l==0)
+        return l;
+
+    if(r-l==1)
     {
         if(a[l]<=value)
             return l+1;
-        return l;
+        else
+            return l;
     }
 
-    int mid=(l+r)/2;
+    mid=(l+r)/2;
+    p1=partition(a,l,mid,value,cost,count);
+    p2=partition(a,mid,r,value,cost,count);
+    //Left part:
+    //[true elements][false elements]
 
-    int p1=partition(a,l,mid,value);
-    int p2=partition(a,mid+1,r,value);
+    //Right part:
+    //[true elements][false elements]
 
-    //Left part: True False
-    //Right part: True False
-    //Rotate False and True parts
+    //Rotate false part of left with true part of right
+    leftFalse=mid-p1;
+    rightTrue=p2-mid;
+    if(leftFalse>0 && rightTrue>0)
+    {
+        reverse(a,p1,mid-1,cost,count);
+        reverse(a,mid,p2-1,cost,count);
+        reverse(a,p1,p2-1,cost,count);
+    }
 
-    reverse(a,p1,mid);
-    reverse(a,mid+1,p2-1);
-    reverse(a,p1,p2-1);
-
-    return p1+(p2-(mid+1));
+    return p1+rightTrue;
 }
-//Divide and conquer sorting
-void sort(int a[],int l,int r,int low,int high)
+
+//Part 2: Divide and conquer sorting
+void divideSort(int a[],int l,int r,int low,int high,long long *cost,int *count)
 {
-    if(l>=r || low>=high)
+    int midValue,p;
+
+    if(r-l<=1 || low>=high)
         return;
 
-    int value=(low+high)/2;
+    midValue=(low+high)/2;
 
-    //Partition elements based on middle value
-    int p=partition(a,l,r,value);
+    //Partition into values <= midValue and > midValue
+    p=partition(a,l,r,midValue,cost,count);
 
-    //Sort left part
-    sort(a,l,p-1,low,value);
-
-    //Sort right part
-    sort(a,p,r,value+1,high);
+    //Sort both parts recursively
+    divideSort(a,l,p,low,midValue,cost,count);
+    divideSort(a,p,r,midValue+1,high,cost,count);
 }
+
+//Print array
+void printArray(int a[],int n)
+{
+    int i;
+
+    for(i=0;i<n;i++)
+        printf("%d ",a[i]);
+
+    printf("\n");
+}
+
 int main()
 {
-    int a[MAX];
+    int a[MAX],b[MAX];
     int n,i;
+    long long cost1=0,cost2=0;
+    int count1=0,count2=0;
 
     printf("Enter number of elements: ");
     scanf("%d",&n);
@@ -71,16 +121,23 @@ int main()
     printf("Enter permutation:\n");
 
     for(i=0;i<n;i++)
+    {
         scanf("%d",&a[i]);
-
-    sort(a,0,n-1,1,n);
-
+        b[i]=a[i];
+    }
+    //Part 1
+    simpleSort(a,n,&cost1,&count1);
+    printf("\nPart 1: O(n) Reversals\n");
     printf("Sorted permutation:\n");
-
-    for(i=0;i<n;i++)
-        printf("%d ",a[i]);
-
-    printf("\nTotal reversals = %d",reversals);
-    printf("\nTotal reversal cost = %d\n",cost);
+    printArray(a,n);
+    printf("Number of reversals = %d\n",count1);
+    printf("Total reversal cost = %lld\n",cost1);
+    //Part 2
+    divideSort(b,0,n,1,n,&cost2,&count2);
+    printf("\nPart 2: Divide and Conquer\n");
+    printf("Sorted permutation:\n");
+    printArray(b,n);
+    printf("Number of reversals = %d\n",count2);
+    printf("Total reversal cost = %lld\n",cost2);
     return 0;
 }
